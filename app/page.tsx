@@ -77,9 +77,9 @@ type DashboardMetric = {
 
 const DB_NAME = 'studyforge-offline';
 const DB_VERSION = 1;
-const APP_VERSION = '0.2.0';
+const APP_VERSION = '0.2.1';
 const RELEASE_NOTES = [
-  'Online deep study mode with OpenAI support.',
+  'Gemini free-tier online deep study mode is now wired into the app.',
   'Optional instruction box before generating study output.',
   'Interactive quiz mode with answers, scoring, and explanations.',
   'Automatic offline fallback when online AI or Ollama is unavailable.',
@@ -493,7 +493,7 @@ export default function StudyForge() {
     try {
       const controller = new AbortController();
       timeout = window.setTimeout(() => controller.abort(), onlineDeepStudy ? 25000 : 8000);
-      const res = await fetch(onlineDeepStudy ? '/api/openai' : '/api/ollama', {
+      const res = await fetch(onlineDeepStudy ? '/api/gemini' : '/api/ollama', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
@@ -787,7 +787,7 @@ export default function StudyForge() {
                   onChange={(event) => setOnlineDeepStudy(event.target.checked)}
                   className="h-4 w-4"
                 />
-                Use online deep study mode with OpenAI when available
+                Use Gemini online deep study mode when available
               </label>
               <button
                 onClick={askAI}
@@ -891,7 +891,7 @@ export default function StudyForge() {
               {[
                 ['Offline use', 'Install the app from your browser menu. Uploaded notes, extracted text, progress, reminders, and AI outputs are stored locally in IndexedDB.'],
                 ['PDF support', 'PDF parsing now uses a local worker copied into the app, so reading PDFs no longer depends on a CDN.'],
-                ['AI modes', 'StudyForge can use OpenAI for online deep study if OPENAI_API_KEY is set. Without it, the app falls back to Ollama or the built-in offline generator.'],
+                ['AI modes', 'StudyForge can use Gemini for online deep study if GEMINI_API_KEY is set. Without it, the app falls back to Ollama or the built-in offline generator.'],
                 ['Backups', 'Your browser owns the offline database. Export/import can be added next so you can move your study library between devices.'],
               ].map(([title, body]) => (
                 <article key={title} className="rounded-lg border border-slate-200 p-4">

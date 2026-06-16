@@ -1,6 +1,6 @@
 # StudyForge
 
-StudyForge is an offline-first study companion built with Next.js. It helps you create subjects, upload multiple PDF/TXT/MD/DOCX files, save manual notes, track progress, set study reminders, and generate summaries, flashcards, quizzes, plans, and suggestions through local Ollama.
+StudyForge is an offline-first study companion built with Next.js. It helps you create subjects, upload multiple PDF/TXT/MD/DOCX files, save manual notes, track progress, set study reminders, and generate summaries, flashcards, quizzes, plans, and suggestions through Gemini online mode, local Ollama, or the built-in offline generator.
 
 ## Offline Features
 
@@ -32,7 +32,7 @@ GEMINI_MODEL=gemini-2.5-flash
 
 Get a Gemini API key from [Google AI Studio](https://aistudio.google.com/). Restart the dev server after changing `.env.local`.
 
-Gemini is the recommended free online provider. Free limits can change, so StudyForge should still keep the built-in offline generator as a fallback.
+Gemini is the recommended free online provider. The app sends deep study requests through `/api/gemini`. Free limits can change, so StudyForge still keeps the built-in offline generator as a fallback.
 
 Optional paid/backup OpenAI variables can also be added if you want to keep OpenAI support:
 
