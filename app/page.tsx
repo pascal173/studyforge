@@ -79,10 +79,9 @@ type DashboardMetric = {
 
 const DB_NAME = 'studyforge-offline';
 const DB_VERSION = 1;
-const APP_VERSION = '0.2.3';
+const APP_VERSION = '0.2.4';
 const RELEASE_NOTES = [
-  'Progress is now scored automatically from reading, generated study aids, and quiz results.',
-  'Deep study quiz now uses the same interactive quiz flow as offline quiz mode.',
+  'Deep study quiz now asks Gemini for more intensive questions while keeping the interactive quiz flow.',
 ];
 const SUBJECT_COLORS = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#dc2626', '#0891b2'];
 
@@ -216,6 +215,25 @@ function makeQuiz(text: string): QuizQuestion[] {
       explanation,
     };
   });
+}
+
+function parseQuizQuestions(raw: string): QuizQuestion[] {
+  const cleaned = raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+  const parsed = JSON.parse(cleaned) as { questions?: QuizQuestion[] };
+
+  return (parsed.questions || [])
+    .filter((question) => {
+      return (
+        typeof question.question === 'string' &&
+        Array.isArray(question.options) &&
+        question.options.length === 4 &&
+        Number.isInteger(question.answerIndex) &&
+        question.answerIndex >= 0 &&
+        question.answerIndex < 4 &&
+        typeof question.explanation === 'string'
+      );
+    })
+    .slice(0, 8);
 }
 
 function scoreProgress(current: number, activity: 'read' | 'generated' | 'quiz', quizPercent = 0) {
@@ -501,14 +519,16 @@ export default function StudyForge() {
     const subject = activeSubject?.name || 'General';
 
     if (mode === 'quiz') {
-      const questions = makeQuiz(activeText);
-      setQuizQuestions(questions);
-      setAiResult('');
-      if (activeDocument) {
-        await updateDocumentProgress(activeDocument.id, scoreProgress(activeDocument.progress, 'generated'));
+      if (!onlineDeepStudy) {
+        const questions = makeQuiz(activeText);
+        setQuizQuestions(questions);
+        setAiResult('');
+        if (activeDocument) {
+          await updateDocumentProgress(activeDocument.id, scoreProgress(activeDocument.progress, 'generated'));
+        }
+        setLoading(false);
+        return;
       }
-      setLoading(false);
-      return;
     }
 
     let timeout: number | undefined;
@@ -532,6 +552,17 @@ export default function StudyForge() {
       if (!res.ok || data.error) throw new Error(data.error || 'AI request failed.');
 
       const result = data.result || 'No response';
+      if (mode === 'quiz') {
+        const questions = parseQuizQuestions(result);
+        if (questions.length === 0) throw new Error('Deep quiz did not return usable questions.');
+        setQuizQuestions(questions);
+        setAiResult('');
+        if (activeDocument) {
+          await updateDocumentProgress(activeDocument.id, scoreProgress(activeDocument.progress, 'generated'));
+        }
+        return;
+      }
+
       setAiResult(result);
       if (activeDocument) {
         await updateDocumentProgress(activeDocument.id, scoreProgress(activeDocument.progress, 'generated'));
@@ -550,6 +581,17 @@ export default function StudyForge() {
         setGenerations((current) => [generation, ...current]);
       }
     } catch {
+      if (mode === 'quiz') {
+        const questions = makeQuiz(activeText);
+        setQuizQuestions(questions);
+        setAiResult('');
+        if (activeDocument) {
+          await updateDocumentProgress(activeDocument.id, scoreProgress(activeDocument.progress, 'generated'));
+        }
+        toast.success('Deep quiz is unavailable, so StudyForge used the offline quiz generator.');
+        return;
+      }
+
       const result = localStudyGeneration(activeText, mode, subject, customInstruction);
       setAiResult(result);
       if (activeDocument) {
@@ -956,6 +998,7 @@ export default function StudyForge() {
                 ['Offline use', 'Install the app from your browser menu. Uploaded notes, extracted text, progress, reminders, and AI outputs are stored locally in IndexedDB.'],
                 ['PDF support', 'PDF parsing now uses a local worker copied into the app, so reading PDFs no longer depends on a CDN.'],
                 ['AI modes', 'StudyForge can use Gemini for online deep study if GEMINI_API_KEY is set. Without it, the app falls back to Ollama or the built-in offline generator.'],
+                ['Deep quiz', 'When Gemini deep study is enabled, quiz mode asks Gemini for harder comprehension questions, then shows them in the same interactive quiz interface.'],
                 ['Progress scoring', 'Progress is scored automatically. Opening a document, generating study aids, and submitting quiz answers all raise the score based on your activity.'],
                 ['Read aloud', 'Use the Read aloud button to listen to the generated answer. If no answer has been generated yet, it reads the current notes or extracted document text.'],
                 ['Backups', 'Your browser owns the offline database. Export/import can be added next so you can move your study library between devices.'],

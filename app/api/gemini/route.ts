@@ -27,11 +27,18 @@ export async function POST(request: Request) {
   }
 
   const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const wantsQuiz = action === "quiz";
   const task = [
     `You are a rigorous study tutor for ${subject || "General"}.`,
-    "Create a deep, complete study output from the material.",
-    "Cover definitions, key ideas, examples, relationships, likely exam points, and weak spots.",
-    "Make the answer more useful than a short summary; include structured sections and study guidance.",
+    wantsQuiz
+      ? "Create a challenging deep-study quiz from the material."
+      : "Create a deep, complete study output from the material.",
+    wantsQuiz
+      ? "Test comprehension, application, differences between concepts, causes/effects, examples, and likely exam traps."
+      : "Cover definitions, key ideas, examples, relationships, likely exam points, and weak spots.",
+    wantsQuiz
+      ? "Return only valid JSON with this shape: {\"questions\":[{\"question\":\"...\",\"options\":[\"...\",\"...\",\"...\",\"...\"],\"answerIndex\":0,\"explanation\":\"...\"}]}. Create 8 questions. Each explanation should teach why the answer is correct."
+      : "Make the answer more useful than a short summary; include structured sections and study guidance.",
     instruction ? `Student request: ${instruction}` : "",
     `Mode: ${action}`,
   ].filter(Boolean).join("\n");
@@ -57,6 +64,7 @@ export async function POST(request: Request) {
           generationConfig: {
             temperature: 0.35,
             maxOutputTokens: 4096,
+            ...(wantsQuiz ? { responseMimeType: "application/json" } : {}),
           },
         }),
       },
