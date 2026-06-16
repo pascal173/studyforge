@@ -26,11 +26,20 @@ StudyForge sends AI requests to `http://localhost:11434/api/generate`.
 Create `.env.local` in the project folder:
 
 ```bash
-OPENAI_API_KEY=your_api_key_here
-OPENAI_MODEL=gpt-5.5
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
-Restart the dev server after changing `.env.local`. In the app, enable `Use online deep study mode with OpenAI when available`.
+Get a Gemini API key from [Google AI Studio](https://aistudio.google.com/). Restart the dev server after changing `.env.local`.
+
+Gemini is the recommended free online provider. Free limits can change, so StudyForge should still keep the built-in offline generator as a fallback.
+
+Optional paid/backup OpenAI variables can also be added if you want to keep OpenAI support:
+
+```bash
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-5.5
+```
 
 ## Deploy Free On Vercel
 
@@ -40,13 +49,13 @@ Restart the dev server after changing `.env.local`. In the app, enable `Use onli
 4. Add environment variables:
 
 ```bash
-OPENAI_API_KEY=your_api_key_here
-OPENAI_MODEL=gpt-5.5
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 5. Deploy. Your phone can open the Vercel URL and install StudyForge from the browser menu.
 
-The hosted app does not use your PC as a server. Ollama remains local-only, while OpenAI deep study mode works from Vercel when the API key is set.
+The hosted app does not use your PC as a server. Ollama remains local-only, while Gemini deep study mode works from Vercel when the API key is set.
 
 ## Development
 
