@@ -79,9 +79,10 @@ type DashboardMetric = {
 
 const DB_NAME = 'studyforge-offline';
 const DB_VERSION = 1;
-const APP_VERSION = '0.2.2';
+const APP_VERSION = '0.2.3';
 const RELEASE_NOTES = [
-  'Read aloud button for generated answers and study notes.',
+  'Progress is now scored automatically from reading, generated study aids, and quiz results.',
+  'Deep study quiz now uses the same interactive quiz flow as offline quiz mode.',
 ];
 const SUBJECT_COLORS = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#dc2626', '#0891b2'];
 
@@ -215,6 +216,12 @@ function makeQuiz(text: string): QuizQuestion[] {
       explanation,
     };
   });
+}
+
+function scoreProgress(current: number, activity: 'read' | 'generated' | 'quiz', quizPercent = 0) {
+  if (activity === 'read') return Math.max(current, 15);
+  if (activity === 'generated') return Math.max(current, 45);
+  return Math.max(current, Math.min(100, Math.round(55 + quizPercent * 0.45)));
 }
 
 function uid(prefix: string) {
@@ -469,11 +476,18 @@ export default function StudyForge() {
     toast.success('Notes saved offline.');
   };
 
-  const updateProgress = async (progress: number) => {
-    if (!activeDocument) return;
-    const updated = { ...activeDocument, progress, updatedAt: new Date().toISOString() };
+  const updateDocumentProgress = async (documentId: string, progress: number) => {
+    const document = documents.find((item) => item.id === documentId);
+    if (!document) return;
+    const updated = { ...document, progress, updatedAt: new Date().toISOString() };
     await putStore('documents', updated);
     setDocuments((current) => current.map((document) => (document.id === updated.id ? updated : document)));
+  };
+
+  const markDocumentRead = (documentId: string) => {
+    const document = documents.find((item) => item.id === documentId);
+    if (!document) return;
+    updateDocumentProgress(documentId, scoreProgress(document.progress, 'read')).catch(() => undefined);
   };
 
   const askAI = async () => {
@@ -490,6 +504,9 @@ export default function StudyForge() {
       const questions = makeQuiz(activeText);
       setQuizQuestions(questions);
       setAiResult('');
+      if (activeDocument) {
+        await updateDocumentProgress(activeDocument.id, scoreProgress(activeDocument.progress, 'generated'));
+      }
       setLoading(false);
       return;
     }
@@ -516,6 +533,9 @@ export default function StudyForge() {
 
       const result = data.result || 'No response';
       setAiResult(result);
+      if (activeDocument) {
+        await updateDocumentProgress(activeDocument.id, scoreProgress(activeDocument.progress, 'generated'));
+      }
 
       if (activeSubjectId && activeDocumentId) {
         const generation: StudyGeneration = {
@@ -532,6 +552,9 @@ export default function StudyForge() {
     } catch {
       const result = localStudyGeneration(activeText, mode, subject, customInstruction);
       setAiResult(result);
+      if (activeDocument) {
+        await updateDocumentProgress(activeDocument.id, scoreProgress(activeDocument.progress, 'generated'));
+      }
       toast.success(onlineDeepStudy ? 'Online AI is unavailable, so StudyForge used its offline generator.' : 'Ollama is unavailable, so StudyForge used its built-in offline generator.');
 
       if (activeSubjectId && activeDocumentId) {
@@ -589,6 +612,15 @@ export default function StudyForge() {
   const stopReading = () => {
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setIsReading(false);
+  };
+
+  const submitQuiz = async () => {
+    setQuizDone(true);
+    if (!activeDocument || quizQuestions.length === 0) return;
+
+    const correctAnswers = quizQuestions.filter((question, index) => quizAnswers[index] === question.answerIndex).length;
+    const quizPercent = Math.round((correctAnswers / quizQuestions.length) * 100);
+    await updateDocumentProgress(activeDocument.id, scoreProgress(activeDocument.progress, 'quiz', quizPercent));
   };
 
   const deleteDocument = async (id: string) => {
@@ -697,7 +729,9 @@ export default function StudyForge() {
                   key={subject.id}
                   onClick={() => {
                     setActiveSubjectId(subject.id);
-                    setActiveDocumentId(documents.find((document) => document.subjectId === subject.id)?.id ?? '');
+                    const firstDocument = documents.find((document) => document.subjectId === subject.id);
+                    setActiveDocumentId(firstDocument?.id ?? '');
+                    if (firstDocument) markDocumentRead(firstDocument.id);
                   }}
                   className={`w-full rounded-md border px-3 py-3 text-left ${
                     activeSubjectId === subject.id ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-200 hover:bg-slate-50'
@@ -734,7 +768,10 @@ export default function StudyForge() {
                   {subjectDocuments.map((document) => (
                     <button
                       key={document.id}
-                      onClick={() => setActiveDocumentId(document.id)}
+                      onClick={() => {
+                        setActiveDocumentId(document.id);
+                        markDocumentRead(document.id);
+                      }}
                       className={`flex w-full items-start gap-3 border-b border-slate-100 p-3 text-left last:border-b-0 ${
                         activeDocumentId === document.id ? 'bg-blue-50' : 'hover:bg-slate-50'
                       }`}
@@ -764,17 +801,9 @@ export default function StudyForge() {
                     )}
                     {activeDocument && (
                       <>
-                        <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-                          Progress
-                          <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={activeDocument.progress}
-                            onChange={(event) => updateProgress(Number(event.target.value))}
-                          />
-                          {activeDocument.progress}%
-                        </label>
+                        <p className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">
+                          Auto progress score: {activeDocument.progress}%
+                        </p>
                         <button onClick={() => deleteDocument(activeDocument.id)} className="inline-flex items-center gap-2 rounded-md border border-red-200 px-3 py-2 text-sm font-semibold text-red-700">
                           <Trash2 size={16} /> Delete
                         </button>
@@ -862,7 +891,7 @@ export default function StudyForge() {
                   ))}
                   {!quizDone ? (
                     <button
-                      onClick={() => setQuizDone(true)}
+                      onClick={submitQuiz}
                       disabled={Object.keys(quizAnswers).length < quizQuestions.length}
                       className="rounded-md bg-blue-700 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -927,6 +956,7 @@ export default function StudyForge() {
                 ['Offline use', 'Install the app from your browser menu. Uploaded notes, extracted text, progress, reminders, and AI outputs are stored locally in IndexedDB.'],
                 ['PDF support', 'PDF parsing now uses a local worker copied into the app, so reading PDFs no longer depends on a CDN.'],
                 ['AI modes', 'StudyForge can use Gemini for online deep study if GEMINI_API_KEY is set. Without it, the app falls back to Ollama or the built-in offline generator.'],
+                ['Progress scoring', 'Progress is scored automatically. Opening a document, generating study aids, and submitting quiz answers all raise the score based on your activity.'],
                 ['Read aloud', 'Use the Read aloud button to listen to the generated answer. If no answer has been generated yet, it reads the current notes or extracted document text.'],
                 ['Backups', 'Your browser owns the offline database. Export/import can be added next so you can move your study library between devices.'],
               ].map(([title, body]) => (
