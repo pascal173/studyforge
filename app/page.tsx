@@ -1,65 +1,160 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState } from 'react';
+import { Upload, BookOpen, Brain, Clock, Target, Save } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
+import * as pdfjsLib from 'pdfjs-dist';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.worker.min.mjs`;
+
+export default function StudyForge() {
+  const [text, setText] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [subject, setSubject] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState('');
+  const [mode, setMode] = useState<'summary' | 'flashcards' | 'quiz' | 'plan'>('summary');
+
+  const extractPDF = async (file: File) => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      
+      let fullText = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        fullText += content.items.map((item: any) => item.str).join(' ') + '\n\n';
+      }
+      
+      setText(fullText.trim());
+      setFileName(file.name);
+      toast.success(`✅ Extracted text from ${file.name}`);
+    } catch (err) {
+      toast.error("Could not read PDF. Try another file.");
+    }
+  };
+
+  const askAI = async () => {
+    if (!text.trim()) return toast.error("No content loaded");
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/ollama', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: text,
+          action: mode,
+          subject: subject || "General"
+        }),
+      });
+
+      const data = await res.json();
+      setResult(data.result || "No response.");
+    } catch (err) {
+      toast.error("Ollama not running. Run: ollama run llama3.1:8b");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveSession = () => {
+    if (!subject || !text.trim()) return toast.error("Add subject + content");
+
+    const session = {
+      id: Date.now(),
+      subject,
+      fileName: fileName || "Manual",
+      date: new Date().toLocaleDateString(),
+      preview: text.substring(0, 120) + "..."
+    };
+
+    const existing = JSON.parse(localStorage.getItem('studySessions') || '[]');
+    localStorage.setItem('studySessions', JSON.stringify([session, ...existing]));
+    toast.success(`Session saved for ${subject}`);
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="min-h-screen bg-gray-950 text-white p-6">
+      <Toaster position="top-center" />
+
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-5xl font-bold text-center mb-2">StudyForge</h1>
+        <p className="text-center text-gray-400 mb-10">AI Study Assistant for University</p>
+
+        <input
+          type="text"
+          placeholder="Subject (e.g. Data Science, Organic Chemistry)"
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          className="w-full bg-gray-900 border border-gray-700 rounded-xl px-6 py-4 mb-6 text-lg"
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+        {/* PDF Upload */}
+        <div className="border-2 border-dashed border-gray-700 rounded-2xl p-12 text-center mb-8">
+          <Upload className="mx-auto mb-4 text-blue-400" size={48} />
+          <p className="text-xl mb-4">Upload Lecture Notes (PDF)</p>
+          <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-xl text-lg inline-block">
+            Choose PDF File
+            <input 
+              type="file" 
+              accept=".pdf" 
+              onChange={(e) => e.target.files && extractPDF(e.target.files[0])}
+              className="hidden" 
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </label>
+          {fileName && <p className="mt-4 text-green-400">Loaded: {fileName}</p>}
         </div>
-      </main>
+
+        <textarea
+          className="w-full h-52 bg-gray-900 border border-gray-700 rounded-2xl p-6 text-sm"
+          placeholder="PDF text will appear here..."
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+
+        <div className="flex flex-wrap gap-3 mt-6">
+          {[
+            { label: "Summary", value: "summary" },
+            { label: "Flashcards", value: "flashcards" },
+            { label: "Practice Quiz", value: "quiz" },
+            { label: "Study Plan", value: "plan" },
+          ].map((item) => (
+            <button
+              key={item.value}
+              onClick={() => setMode(item.value as any)}
+              className={`px-6 py-3 rounded-2xl transition-all ${mode === item.value ? 'bg-blue-600 scale-105' : 'bg-gray-800 hover:bg-gray-700'}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-4 mt-8">
+          <button
+            onClick={askAI}
+            disabled={loading || !text.trim()}
+            className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 py-4 rounded-2xl font-semibold text-lg disabled:opacity-50"
+          >
+            {loading ? "AI Working..." : `Generate ${mode}`}
+          </button>
+
+          <button
+            onClick={saveSession}
+            disabled={!subject || !text.trim()}
+            className="px-10 bg-green-600 hover:bg-green-700 rounded-2xl flex items-center gap-3"
+          >
+            <Save size={22} /> Save Session
+          </button>
+        </div>
+
+        {result && (
+          <div className="mt-10 bg-gray-900 border border-gray-700 rounded-3xl p-8 leading-relaxed whitespace-pre-wrap">
+            {result}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
