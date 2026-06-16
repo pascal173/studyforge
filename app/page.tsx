@@ -898,22 +898,22 @@ export default function StudyForge() {
         </div>
       )}
 
-      <header className={`border-b ${settings.darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4">
-            <Image src="/icon.svg" width={54} height={54} alt="StudyForge logo" className="rounded-2xl shadow-sm" priority />
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Offline study companion</p>
-              <h1 className="text-3xl font-bold">StudyForge</h1>
+      <header className={`sticky top-0 z-40 border-b backdrop-blur-xl ${settings.darkMode ? 'border-slate-800 bg-slate-950/90' : 'border-slate-200 bg-white/90 shadow-sm shadow-slate-200/60'}`}>
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <Image src="/icon.svg" width={48} height={48} alt="StudyForge logo" className="h-11 w-11 shrink-0 rounded-xl shadow-sm ring-1 ring-slate-900/5 sm:h-12 sm:w-12" priority />
+            <div className="min-w-0">
+              <p className="text-[0.68rem] font-bold uppercase tracking-[0.16em] text-blue-700 sm:text-xs">Offline study companion</p>
+              <h1 className="truncate text-2xl font-black tracking-normal sm:text-3xl">StudyForge</h1>
             </div>
           </div>
-          <nav className={`flex flex-wrap gap-2 rounded-lg border p-1 ${settings.darkMode ? 'border-slate-800 bg-slate-950' : 'border-slate-200 bg-slate-50'}`}>
+          <nav className={`hide-scrollbar -mx-1 flex gap-2 overflow-x-auto rounded-lg border p-1 ${settings.darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-slate-50'}`} aria-label="Primary">
             {(['workspace', 'library', 'reader', 'review', 'settings', 'help'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`rounded-md px-4 py-2 text-sm font-semibold capitalize ${
-                  activeTab === tab ? 'bg-blue-700 text-white' : settings.darkMode ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-white'
+                className={`shrink-0 rounded-md px-3 py-2 text-sm font-bold capitalize transition sm:px-4 ${
+                  activeTab === tab ? 'bg-blue-700 text-white shadow-sm' : settings.darkMode ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-white hover:shadow-sm'
                 }`}
               >
                 {tab}
@@ -923,26 +923,26 @@ export default function StudyForge() {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl gap-5 px-4 py-6 md:grid-cols-4">
+      <section className="mx-auto grid max-w-7xl grid-cols-2 gap-3 px-4 py-4 sm:px-5 md:grid-cols-4 lg:py-6">
         {([
           { label: 'Subjects', value: dashboard.subjects, Icon: BookOpen },
           { label: 'Documents', value: dashboard.documents, Icon: Library },
           { label: 'Progress', value: `${dashboard.averageProgress}%`, Icon: CheckCircle2 },
           { label: 'Reminders', value: dashboard.reminders, Icon: Bell },
         ] satisfies DashboardMetric[]).map(({ label, value, Icon }) => (
-          <div key={label} className={`rounded-lg border p-4 ${settings.darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+          <div key={label} className={`rounded-lg border p-3 shadow-sm sm:p-4 ${settings.darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white shadow-slate-200/70'}`}>
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-500">{label}</p>
-              <Icon className="text-blue-700" size={20} />
+              <Icon className="shrink-0 text-blue-700" size={20} />
             </div>
-            <p className="mt-2 text-2xl font-bold">{value}</p>
+            <p className="mt-2 text-2xl font-black">{value}</p>
           </div>
         ))}
       </section>
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 pb-10 lg:grid-cols-[320px_1fr]">
-        <aside className="space-y-5">
-          <section className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="mx-auto grid max-w-7xl gap-5 px-4 pb-10 sm:px-5 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="space-y-4 lg:sticky lg:top-28 lg:self-start">
+          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70">
             <h2 className="flex items-center gap-2 text-lg font-bold">
               <Plus size={18} /> Add subject
             </h2>
@@ -958,14 +958,14 @@ export default function StudyForge() {
               className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               placeholder="Goal for this subject"
             />
-            <button onClick={createSubject} className="mt-3 w-full rounded-md bg-blue-700 px-4 py-2 font-semibold text-white">
+            <button onClick={createSubject} className="mt-3 w-full rounded-md bg-blue-700 px-4 py-2 font-bold text-white shadow-sm transition hover:bg-blue-800">
               Save subject
             </button>
           </section>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-4">
+          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70">
             <h2 className="text-lg font-bold">Subjects</h2>
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1 lg:max-h-[calc(100vh-28rem)]">
               {subjects.length === 0 && <p className="text-sm text-slate-500">Add your first subject to begin.</p>}
               {subjects.map((subject) => (
                 <button
@@ -976,8 +976,8 @@ export default function StudyForge() {
                     setActiveDocumentId(firstDocument?.id ?? '');
                     if (firstDocument) markDocumentRead(firstDocument.id);
                   }}
-                  className={`w-full rounded-md border px-3 py-3 text-left ${
-                    activeSubjectId === subject.id ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-200 hover:bg-slate-50'
+                  className={`w-full rounded-md border px-3 py-3 text-left transition ${
+                    activeSubjectId === subject.id ? 'border-slate-950 bg-slate-950 text-white shadow-sm' : 'border-slate-200 hover:bg-slate-50'
                   }`}
                 >
                   <span className="flex items-center gap-2 font-semibold">
@@ -992,21 +992,21 @@ export default function StudyForge() {
         </aside>
 
         {activeTab === 'workspace' && (
-          <section className="space-y-5">
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
+          <section className="min-w-0 space-y-5">
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 sm:p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-xl font-bold">{activeSubject?.name || 'Choose a subject'}</h2>
                   <p className="text-sm text-slate-500">Upload multiple files, paste notes, track progress, and generate study aids offline-first.</p>
                 </div>
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-slate-950 px-4 py-2 font-semibold text-white">
+                <label className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-slate-950 px-4 py-2 font-bold text-white shadow-sm transition hover:bg-slate-800 md:w-auto">
                   <Upload size={18} /> Upload files
                   <input type="file" accept=".pdf,.txt,.md,.docx" multiple className="hidden" onChange={(event) => uploadFiles(event.target.files)} />
                 </label>
               </div>
 
-              <div className="mt-5 grid gap-4 lg:grid-cols-[260px_1fr]">
-                <div className="rounded-lg border border-slate-200">
+              <div className="mt-5 grid min-w-0 gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
+                <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-200 xl:max-h-none">
                   {subjectDocuments.length === 0 && <p className="p-4 text-sm text-slate-500">No documents in this subject yet.</p>}
                   {subjectDocuments.map((document) => (
                     <button
@@ -1015,30 +1015,30 @@ export default function StudyForge() {
                         setActiveDocumentId(document.id);
                         markDocumentRead(document.id);
                       }}
-                      className={`flex w-full items-start gap-3 border-b border-slate-100 p-3 text-left last:border-b-0 ${
+                      className={`flex w-full items-start gap-3 border-b border-slate-100 p-3 text-left transition last:border-b-0 ${
                         activeDocumentId === document.id ? 'bg-blue-50' : 'hover:bg-slate-50'
                       }`}
                     >
-                      <FileText className="mt-1 text-blue-700" size={18} />
-                      <span>
-                        <span className="block text-sm font-semibold">{document.fileName}</span>
+                      <FileText className="mt-1 shrink-0 text-blue-700" size={18} />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold">{document.fileName}</span>
                         <span className="block text-xs text-slate-500">{document.progress}% complete</span>
                       </span>
                     </button>
                   ))}
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <textarea
                     value={activeDocument?.content ?? manualText}
                     onChange={(event) => (activeDocument ? undefined : setManualText(event.target.value))}
                     readOnly={Boolean(activeDocument)}
-                    className="h-72 w-full resize-none rounded-lg border border-slate-300 bg-white p-4 text-sm leading-6"
+                    className="h-64 w-full resize-none rounded-lg border border-slate-300 bg-white p-4 text-sm leading-6 shadow-inner shadow-slate-100/70 sm:h-72"
                     placeholder="Paste notes here or upload PDFs, TXT, MD, and DOCX files."
                   />
-                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                     {!activeDocument && (
-                      <button onClick={saveManualDocument} className="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 font-semibold text-white">
+                      <button onClick={saveManualDocument} className="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 py-2 font-bold text-white">
                         <Save size={18} /> Save notes
                       </button>
                     )}
@@ -1047,7 +1047,7 @@ export default function StudyForge() {
                         <p className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">
                           Auto progress score: {activeDocument.progress}%
                         </p>
-                        <button onClick={() => deleteDocument(activeDocument.id)} className="inline-flex items-center gap-2 rounded-md border border-red-200 px-3 py-2 text-sm font-semibold text-red-700">
+                        <button onClick={() => deleteDocument(activeDocument.id)} className="inline-flex items-center justify-center gap-2 rounded-md border border-red-200 px-3 py-2 text-sm font-bold text-red-700">
                           <Trash2 size={16} /> Delete
                         </button>
                       </>
@@ -1057,14 +1057,14 @@ export default function StudyForge() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
-              <div className="flex flex-wrap gap-2">
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 sm:p-5">
+              <div className="hide-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
                 {(['summary', 'flashcards', 'quiz', 'plan', 'suggestions'] as StudyMode[]).map((item) => (
                   <button
                     key={item}
                     onClick={() => setMode(item)}
-                    className={`rounded-md px-4 py-2 text-sm font-semibold capitalize ${
-                      mode === item ? 'bg-blue-700 text-white' : 'border border-slate-200 hover:bg-slate-50'
+                    className={`shrink-0 rounded-md px-4 py-2 text-sm font-bold capitalize transition ${
+                      mode === item ? 'bg-blue-700 text-white shadow-sm' : 'border border-slate-200 hover:bg-slate-50'
                     }`}
                   >
                     {item}
@@ -1086,11 +1086,11 @@ export default function StudyForge() {
                 />
                 Use Gemini online deep study mode when available
               </label>
-              <div className="mt-4 flex flex-wrap gap-3">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <button
                   onClick={askAI}
                   disabled={loading || !activeText.trim()}
-                  className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-950 px-5 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
                   Generate {mode}{onlineDeepStudy ? ' with deep study' : ' offline'}
@@ -1098,7 +1098,7 @@ export default function StudyForge() {
                 <button
                   onClick={isReading ? stopReading : readAloud}
                   disabled={!readableText.trim()}
-                  className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-5 py-3 font-bold text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isReading ? <Square size={18} /> : <Volume2 size={18} />}
                   {isReading ? 'Stop reading' : 'Read aloud'}
@@ -1106,13 +1106,13 @@ export default function StudyForge() {
                 <button
                   onClick={startFlashcards}
                   disabled={!activeText.trim()}
-                  className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-5 py-3 font-semibold text-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-5 py-3 font-bold text-blue-800 disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-2 xl:col-span-1"
                 >
                   <BookOpen size={18} />
                   Review flashcards
                 </button>
               </div>
-              {aiResult && <div className="mt-5 whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm leading-6">{aiResult}</div>}
+              {aiResult && <div className="mt-5 max-h-[34rem] overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 sm:p-5">{aiResult}</div>}
               {quizQuestions.length > 0 && (
                 <div className="mt-5 space-y-4">
                   {quizQuestions.map((question, questionIndex) => (
@@ -1157,13 +1157,13 @@ export default function StudyForge() {
               )}
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 sm:p-5">
               <h2 className="flex items-center gap-2 text-lg font-bold">
                 <Bell size={18} /> Study reminder
               </h2>
-              <div className="mt-3 flex flex-wrap gap-3">
-                <input type="time" value={reminderTime} onChange={(event) => setReminderTime(event.target.value)} className="rounded-md border border-slate-300 px-3 py-2" />
-                <button onClick={saveReminder} className="rounded-md bg-amber-600 px-4 py-2 font-semibold text-white">
+              <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,12rem)_auto]">
+                <input type="time" value={reminderTime} onChange={(event) => setReminderTime(event.target.value)} className="w-full rounded-md border border-slate-300 px-3 py-2" />
+                <button onClick={saveReminder} className="rounded-md bg-amber-600 px-4 py-2 font-bold text-white">
                   Save reminder
                 </button>
               </div>
@@ -1172,14 +1172,14 @@ export default function StudyForge() {
         )}
 
         {activeTab === 'library' && (
-          <section className="rounded-lg border border-slate-200 bg-white p-5">
+          <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 sm:p-5">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <h2 className="text-xl font-bold">Offline library</h2>
-              <div className="flex flex-wrap gap-2">
-                <button onClick={exportBackup} className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white">
+              <div className="grid gap-2 sm:flex sm:flex-wrap">
+                <button onClick={exportBackup} className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-bold text-white">
                   <Download size={16} /> Export backup
                 </button>
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold">
+                <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-bold">
                   <Upload size={16} /> Import backup
                   <input type="file" accept="application/json,.json" className="hidden" onChange={(event) => importBackup(event.target.files?.[0] || null)} />
                 </label>
@@ -1193,8 +1193,8 @@ export default function StudyForge() {
             />
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {filteredDocuments.map((document) => (
-                <div key={document.id} className="rounded-lg border border-slate-200 p-4">
-                  <p className="font-semibold">{document.fileName}</p>
+                <div key={document.id} className="min-w-0 rounded-lg border border-slate-200 p-4">
+                  <p className="truncate font-semibold">{document.fileName}</p>
                   <p className="text-sm text-slate-500">{subjects.find((subject) => subject.id === document.subjectId)?.name || 'No subject'}</p>
                   <div className="mt-3 h-2 rounded-full bg-slate-100">
                     <div className="h-2 rounded-full bg-blue-700" style={{ width: `${document.progress}%` }} />
@@ -1225,7 +1225,7 @@ export default function StudyForge() {
               {generations.slice(0, 8).map((generation) => (
                 <details key={generation.id} className="rounded-lg border border-slate-200 p-4">
                   <summary className="cursor-pointer font-semibold capitalize">{generation.mode}</summary>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{generation.result}</p>
+                  <p className="mt-3 max-h-80 overflow-y-auto whitespace-pre-wrap text-sm leading-6 text-slate-700">{generation.result}</p>
                 </details>
               ))}
             </div>
@@ -1233,26 +1233,26 @@ export default function StudyForge() {
         )}
 
         {activeTab === 'reader' && (
-          <section className="rounded-lg border border-slate-200 bg-white p-5">
+          <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 sm:p-5">
             <h2 className="text-xl font-bold">Reader</h2>
             {!activeDocument && <p className="mt-3 text-sm text-slate-500">Select a saved document to read it page by page.</p>}
             {activeDocument && (
               <>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-600">{activeDocument.fileName}</p>
+                  <p className="min-w-0 truncate text-sm font-semibold text-slate-600">{activeDocument.fileName}</p>
                   <p className="text-sm text-slate-500">Page {Math.min(readerPage + 1, readerPages.length || 1)} / {readerPages.length || 1}</p>
                 </div>
-                <article className="mt-4 min-h-80 rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm leading-7 whitespace-pre-wrap">
+                <article className="mt-4 max-h-[60vh] min-h-72 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-7 whitespace-pre-wrap sm:min-h-80 sm:p-5">
                   {readerPages[readerPage] || activeDocument.content}
                 </article>
-                <div className="mt-4 flex gap-3">
-                  <button onClick={() => setReaderPage((page) => Math.max(0, page - 1))} className="rounded-md border border-slate-300 px-4 py-2 font-semibold">Previous</button>
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:flex">
+                  <button onClick={() => setReaderPage((page) => Math.max(0, page - 1))} className="rounded-md border border-slate-300 px-4 py-2 font-bold">Previous</button>
                   <button
                     onClick={() => {
                       setReaderPage((page) => Math.min(Math.max(readerPages.length - 1, 0), page + 1));
                       markDocumentRead(activeDocument.id);
                     }}
-                    className="rounded-md bg-blue-700 px-4 py-2 font-semibold text-white"
+                    className="rounded-md bg-blue-700 px-4 py-2 font-bold text-white"
                   >
                     Next page
                   </button>
@@ -1263,21 +1263,21 @@ export default function StudyForge() {
         )}
 
         {activeTab === 'review' && (
-          <section className="rounded-lg border border-slate-200 bg-white p-5">
+          <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 sm:p-5">
             <h2 className="text-xl font-bold">Flashcard review</h2>
             {flashcards.length === 0 ? (
               <p className="mt-3 text-sm text-slate-500">Open a document and choose Review flashcards to begin.</p>
             ) : (
               <div className="mt-4">
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-6">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-5 sm:p-6">
                   <p className="text-sm font-semibold text-slate-500">Card {activeFlashcard + 1} / {flashcards.length}</p>
-                  <p className="mt-4 text-xl font-bold">{showFlashcardBack ? flashcards[activeFlashcard].back : flashcards[activeFlashcard].front}</p>
+                  <p className="mt-4 text-lg font-bold leading-7 sm:text-xl">{showFlashcardBack ? flashcards[activeFlashcard].back : flashcards[activeFlashcard].front}</p>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <button onClick={() => setShowFlashcardBack((shown) => !shown)} className="rounded-md bg-slate-950 px-4 py-2 font-semibold text-white">
+                <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap">
+                  <button onClick={() => setShowFlashcardBack((shown) => !shown)} className="rounded-md bg-slate-950 px-4 py-2 font-bold text-white">
                     {showFlashcardBack ? 'Show front' : 'Show answer'}
                   </button>
-                  <button onClick={nextFlashcard} className="rounded-md border border-slate-300 px-4 py-2 font-semibold">Next card</button>
+                  <button onClick={nextFlashcard} className="rounded-md border border-slate-300 px-4 py-2 font-bold">Next card</button>
                 </div>
               </div>
             )}
@@ -1285,7 +1285,7 @@ export default function StudyForge() {
         )}
 
         {activeTab === 'settings' && (
-          <section className="rounded-lg border border-slate-200 bg-white p-5">
+          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 sm:p-5">
             <h2 className="text-xl font-bold">Settings</h2>
             <div className="mt-4 space-y-4">
               <label className="flex items-center gap-3 font-semibold">
@@ -1298,7 +1298,7 @@ export default function StudyForge() {
               </label>
               <label className="block font-semibold">
                 Quiz difficulty
-                <select value={settings.quizDifficulty} onChange={(event) => saveSettings({ ...settings, quizDifficulty: event.target.value as StudySettings['quizDifficulty'] })} className="mt-2 block rounded-md border border-slate-300 px-3 py-2">
+                <select value={settings.quizDifficulty} onChange={(event) => saveSettings({ ...settings, quizDifficulty: event.target.value as StudySettings['quizDifficulty'] })} className="mt-2 block w-full rounded-md border border-slate-300 px-3 py-2 sm:w-auto">
                   <option value="standard">Standard</option>
                   <option value="exam">Exam</option>
                   <option value="advanced">Advanced</option>
@@ -1306,14 +1306,14 @@ export default function StudyForge() {
               </label>
               <label className="block font-semibold">
                 Read aloud speed: {settings.voiceRate.toFixed(2)}x
-                <input type="range" min="0.7" max="1.2" step="0.05" value={settings.voiceRate} onChange={(event) => saveSettings({ ...settings, voiceRate: Number(event.target.value) })} className="mt-2 block" />
+                <input type="range" min="0.7" max="1.2" step="0.05" value={settings.voiceRate} onChange={(event) => saveSettings({ ...settings, voiceRate: Number(event.target.value) })} className="mt-2 block w-full max-w-sm" />
               </label>
             </div>
           </section>
         )}
 
         {activeTab === 'help' && (
-          <section className="rounded-lg border border-slate-200 bg-white p-5">
+          <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 sm:p-5">
             <h2 className="flex items-center gap-2 text-xl font-bold">
               <HelpCircle size={20} /> Help
             </h2>
