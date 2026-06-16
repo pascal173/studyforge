@@ -82,11 +82,6 @@ const DB_VERSION = 1;
 const APP_VERSION = '0.2.2';
 const RELEASE_NOTES = [
   'Read aloud button for generated answers and study notes.',
-  'Gemini free-tier online deep study mode is now wired into the app.',
-  'Optional instruction box before generating study output.',
-  'Interactive quiz mode with answers, scoring, and explanations.',
-  'Automatic offline fallback when online AI or Ollama is unavailable.',
-  'PWA/offline storage improvements for phone and desktop use.',
 ];
 const SUBJECT_COLORS = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#dc2626', '#0891b2'];
 
@@ -932,6 +927,7 @@ export default function StudyForge() {
                 ['Offline use', 'Install the app from your browser menu. Uploaded notes, extracted text, progress, reminders, and AI outputs are stored locally in IndexedDB.'],
                 ['PDF support', 'PDF parsing now uses a local worker copied into the app, so reading PDFs no longer depends on a CDN.'],
                 ['AI modes', 'StudyForge can use Gemini for online deep study if GEMINI_API_KEY is set. Without it, the app falls back to Ollama or the built-in offline generator.'],
+                ['Read aloud', 'Use the Read aloud button to listen to the generated answer. If no answer has been generated yet, it reads the current notes or extracted document text.'],
                 ['Backups', 'Your browser owns the offline database. Export/import can be added next so you can move your study library between devices.'],
               ].map(([title, body]) => (
                 <article key={title} className="rounded-lg border border-slate-200 p-4">
