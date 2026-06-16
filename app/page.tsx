@@ -5,6 +5,7 @@ import {
   Bell,
   BookOpen,
   CheckCircle2,
+  Download,
   FileText,
   HelpCircle,
   Library,
@@ -71,6 +72,28 @@ type QuizQuestion = {
   explanation: string;
 };
 
+type QuizAttempt = {
+  id: string;
+  subjectId: string;
+  documentId: string;
+  score: number;
+  total: number;
+  missed: string[];
+  createdAt: string;
+};
+
+type Flashcard = {
+  front: string;
+  back: string;
+};
+
+type StudySettings = {
+  deepStudy: boolean;
+  quizDifficulty: 'standard' | 'exam' | 'advanced';
+  voiceRate: number;
+  darkMode: boolean;
+};
+
 type DashboardMetric = {
   label: string;
   value: string | number;
@@ -78,12 +101,18 @@ type DashboardMetric = {
 };
 
 const DB_NAME = 'studyforge-offline';
-const DB_VERSION = 1;
-const APP_VERSION = '0.2.4';
+const DB_VERSION = 2;
+const APP_VERSION = '0.3.0';
 const RELEASE_NOTES = [
-  'Deep study quiz now asks Gemini for more intensive questions while keeping the interactive quiz flow.',
+  'Added backups, reader, quiz history, weak areas, flashcard review, search, settings, dark theme, and Gemini-only AI.',
 ];
 const SUBJECT_COLORS = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#dc2626', '#0891b2'];
+const DEFAULT_SETTINGS: StudySettings = {
+  deepStudy: false,
+  quizDifficulty: 'exam',
+  voiceRate: 0.92,
+  darkMode: false,
+};
 
 function getSentences(text: string) {
   return text
@@ -217,6 +246,37 @@ function makeQuiz(text: string): QuizQuestion[] {
   });
 }
 
+function makeFlashcards(text: string): Flashcard[] {
+  const sentences = getSentences(text);
+  const keywords = getKeywords(text);
+  const terms = keywords.length ? keywords : ['main idea', 'key detail', 'important point'];
+
+  return terms.slice(0, 10).map((term, index) => ({
+    front: `What should you remember about "${term}"?`,
+    back: sentences.find((sentence) => sentence.toLowerCase().includes(term)) || sentences[index] || text.slice(0, 220),
+  }));
+}
+
+function splitIntoReaderPages(text: string) {
+  const chunks = text.match(/[\s\S]{1,1800}(?=\s|$)/g) || [];
+  return chunks.map((chunk) => chunk.trim()).filter(Boolean);
+}
+
+function chunkedLocalSummary(text: string, subject: string, instruction: string) {
+  const chunks = splitIntoReaderPages(text).slice(0, 8);
+  const sections = chunks.map((chunk, index) => {
+    const points = getSentences(chunk).slice(0, 4);
+    return [`Section ${index + 1}`, ...points.map((point) => `- ${point}`)].join('\n');
+  });
+
+  return [
+    `Deep offline study guide for ${subject}`,
+    instruction.trim() ? `Focus: ${instruction.trim()}` : '',
+    sections.join('\n\n'),
+    `\nKey terms: ${getKeywords(text).join(', ') || 'main idea, key detail, important point'}`,
+  ].filter(Boolean).join('\n\n');
+}
+
 function parseQuizQuestions(raw: string): QuizQuestion[] {
   const cleaned = raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
   const parsed = JSON.parse(cleaned) as { questions?: QuizQuestion[] };
@@ -256,6 +316,8 @@ function openStudyDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('documents')) db.createObjectStore('documents', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('reminders')) db.createObjectStore('reminders', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('generations')) db.createObjectStore('generations', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('quizAttempts')) db.createObjectStore('quizAttempts', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings', { keyPath: 'id' });
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -295,6 +357,7 @@ export default function StudyForge() {
   const [documents, setDocuments] = useState<StudyDocument[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [generations, setGenerations] = useState<StudyGeneration[]>([]);
+  const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>([]);
   const [activeSubjectId, setActiveSubjectId] = useState('');
   const [activeDocumentId, setActiveDocumentId] = useState('');
   const [subjectName, setSubjectName] = useState('');
@@ -311,22 +374,37 @@ export default function StudyForge() {
   const [isReading, setIsReading] = useState(false);
   const [showUpdatePopup, setShowUpdatePopup] = useState(false);
   const [reminderTime, setReminderTime] = useState('18:00');
-  const [activeTab, setActiveTab] = useState<'workspace' | 'library' | 'help'>('workspace');
+  const [activeTab, setActiveTab] = useState<'workspace' | 'library' | 'reader' | 'review' | 'settings' | 'help'>('workspace');
+  const [readerPage, setReaderPage] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [activeFlashcard, setActiveFlashcard] = useState(0);
+  const [showFlashcardBack, setShowFlashcardBack] = useState(false);
+  const [settings, setSettings] = useState<StudySettings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [savedSubjects, savedDocuments, savedReminders, savedGenerations] = await Promise.all([
+        const [savedSubjects, savedDocuments, savedReminders, savedGenerations, savedAttempts, savedSettings] = await Promise.all([
           readStore<Subject>('subjects'),
           readStore<StudyDocument>('documents'),
           readStore<Reminder>('reminders'),
           readStore<StudyGeneration>('generations'),
+          readStore<QuizAttempt>('quizAttempts'),
+          readStore<StudySettings & { id: string }>('settings'),
         ]);
 
         setSubjects(savedSubjects);
         setDocuments(savedDocuments);
         setReminders(savedReminders);
         setGenerations(savedGenerations);
+        setQuizAttempts(savedAttempts);
+        const storedSettings = savedSettings[0];
+        if (storedSettings) {
+          const nextSettings = { ...DEFAULT_SETTINGS, ...storedSettings };
+          setSettings(nextSettings);
+          setOnlineDeepStudy(nextSettings.deepStudy);
+        }
         setActiveSubjectId(savedSubjects[0]?.id ?? '');
         setActiveDocumentId(savedDocuments[0]?.id ?? '');
       } catch {
@@ -373,6 +451,18 @@ export default function StudyForge() {
   const activeDocument = documents.find((document) => document.id === activeDocumentId);
   const activeText = activeDocument?.content || manualText;
   const readableText = aiResult || activeText;
+  const readerPages = useMemo(() => splitIntoReaderPages(activeText), [activeText]);
+  const filteredDocuments = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return documents;
+    return documents.filter((document) => {
+      const subjectName = subjects.find((subject) => subject.id === document.subjectId)?.name || '';
+      return `${document.fileName} ${subjectName} ${document.content}`.toLowerCase().includes(query);
+    });
+  }, [documents, searchQuery, subjects]);
+  const weakAreas = useMemo(() => {
+    return [...new Set(quizAttempts.flatMap((attempt) => attempt.missed))].slice(0, 12);
+  }, [quizAttempts]);
 
   const dashboard = useMemo(() => {
     const averageProgress = documents.length
@@ -386,6 +476,12 @@ export default function StudyForge() {
       reminders: reminders.filter((reminder) => reminder.enabled).length,
     };
   }, [documents, reminders, subjects]);
+
+  const saveSettings = async (nextSettings: StudySettings) => {
+    setSettings(nextSettings);
+    setOnlineDeepStudy(nextSettings.deepStudy);
+    await putStore('settings', { id: 'main', ...nextSettings });
+  };
 
   const createSubject = async () => {
     if (!subjectName.trim()) return toast.error('Add a subject name first.');
@@ -531,12 +627,37 @@ export default function StudyForge() {
       }
     }
 
+    if (!onlineDeepStudy) {
+      const result = mode === 'summary'
+        ? chunkedLocalSummary(activeText, subject, customInstruction)
+        : localStudyGeneration(activeText, mode, subject, customInstruction);
+
+      setAiResult(result);
+      if (activeDocument) {
+        await updateDocumentProgress(activeDocument.id, scoreProgress(activeDocument.progress, 'generated'));
+      }
+      if (activeSubjectId && activeDocumentId) {
+        const generation: StudyGeneration = {
+          id: uid('gen'),
+          subjectId: activeSubjectId,
+          documentId: activeDocumentId,
+          mode,
+          result,
+          createdAt: new Date().toISOString(),
+        };
+        await putStore('generations', generation);
+        setGenerations((current) => [generation, ...current]);
+      }
+      setLoading(false);
+      return;
+    }
+
     let timeout: number | undefined;
 
     try {
       const controller = new AbortController();
       timeout = window.setTimeout(() => controller.abort(), onlineDeepStudy ? 25000 : 8000);
-      const res = await fetch(onlineDeepStudy ? '/api/gemini' : '/api/ollama', {
+      const res = await fetch('/api/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
@@ -597,7 +718,7 @@ export default function StudyForge() {
       if (activeDocument) {
         await updateDocumentProgress(activeDocument.id, scoreProgress(activeDocument.progress, 'generated'));
       }
-      toast.success(onlineDeepStudy ? 'Online AI is unavailable, so StudyForge used its offline generator.' : 'Ollama is unavailable, so StudyForge used its built-in offline generator.');
+      toast.success('Gemini is unavailable, so StudyForge used its offline generator.');
 
       if (activeSubjectId && activeDocumentId) {
         const generation: StudyGeneration = {
@@ -643,7 +764,7 @@ export default function StudyForge() {
 
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(readableText.slice(0, 12000));
-    utterance.rate = 0.92;
+    utterance.rate = settings.voiceRate;
     utterance.pitch = 1;
     utterance.onend = () => setIsReading(false);
     utterance.onerror = () => setIsReading(false);
@@ -662,7 +783,87 @@ export default function StudyForge() {
 
     const correctAnswers = quizQuestions.filter((question, index) => quizAnswers[index] === question.answerIndex).length;
     const quizPercent = Math.round((correctAnswers / quizQuestions.length) * 100);
+    const missed = quizQuestions
+      .filter((question, index) => quizAnswers[index] !== question.answerIndex)
+      .map((question) => question.question);
+    const attempt: QuizAttempt = {
+      id: uid('attempt'),
+      subjectId: activeSubjectId,
+      documentId: activeDocument.id,
+      score: correctAnswers,
+      total: quizQuestions.length,
+      missed,
+      createdAt: new Date().toISOString(),
+    };
+    await putStore('quizAttempts', attempt);
+    setQuizAttempts((current) => [attempt, ...current]);
     await updateDocumentProgress(activeDocument.id, scoreProgress(activeDocument.progress, 'quiz', quizPercent));
+  };
+
+  const startFlashcards = () => {
+    if (!activeText.trim()) return toast.error('Load a document first.');
+    setFlashcards(makeFlashcards(activeText));
+    setActiveFlashcard(0);
+    setShowFlashcardBack(false);
+    setActiveTab('review');
+  };
+
+  const nextFlashcard = () => {
+    setShowFlashcardBack(false);
+    setActiveFlashcard((current) => (flashcards.length ? (current + 1) % flashcards.length : 0));
+  };
+
+  const exportBackup = () => {
+    const backup = {
+      version: APP_VERSION,
+      exportedAt: new Date().toISOString(),
+      subjects,
+      documents,
+      reminders,
+      generations,
+      quizAttempts,
+      settings,
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `studyforge-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importBackup = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const backup = JSON.parse(await file.text()) as {
+        subjects?: Subject[];
+        documents?: StudyDocument[];
+        reminders?: Reminder[];
+        generations?: StudyGeneration[];
+        quizAttempts?: QuizAttempt[];
+        settings?: StudySettings;
+      };
+
+      await Promise.all([
+        ...(backup.subjects || []).map((item) => putStore('subjects', item)),
+        ...(backup.documents || []).map((item) => putStore('documents', item)),
+        ...(backup.reminders || []).map((item) => putStore('reminders', item)),
+        ...(backup.generations || []).map((item) => putStore('generations', item)),
+        ...(backup.quizAttempts || []).map((item) => putStore('quizAttempts', item)),
+      ]);
+
+      if (backup.settings) await saveSettings({ ...DEFAULT_SETTINGS, ...backup.settings });
+
+      setSubjects(await readStore<Subject>('subjects'));
+      setDocuments(await readStore<StudyDocument>('documents'));
+      setReminders(await readStore<Reminder>('reminders'));
+      setGenerations(await readStore<StudyGeneration>('generations'));
+      setQuizAttempts(await readStore<QuizAttempt>('quizAttempts'));
+      toast.success('Backup imported.');
+    } catch {
+      toast.error('Could not import that backup file.');
+    }
   };
 
   const deleteDocument = async (id: string) => {
@@ -673,7 +874,7 @@ export default function StudyForge() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f8fafc] text-slate-950">
+    <main className={`min-h-screen ${settings.darkMode ? 'bg-slate-950 text-slate-100' : 'bg-[#f8fafc] text-slate-950'}`}>
       <Toaster position="top-center" />
 
       {showUpdatePopup && (
@@ -697,7 +898,7 @@ export default function StudyForge() {
         </div>
       )}
 
-      <header className="border-b border-slate-200 bg-white">
+      <header className={`border-b ${settings.darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <Image src="/icon.svg" width={54} height={54} alt="StudyForge logo" className="rounded-2xl shadow-sm" priority />
@@ -706,13 +907,13 @@ export default function StudyForge() {
               <h1 className="text-3xl font-bold">StudyForge</h1>
             </div>
           </div>
-          <nav className="flex gap-2 rounded-lg border border-slate-200 bg-slate-50 p-1">
-            {(['workspace', 'library', 'help'] as const).map((tab) => (
+          <nav className={`flex flex-wrap gap-2 rounded-lg border p-1 ${settings.darkMode ? 'border-slate-800 bg-slate-950' : 'border-slate-200 bg-slate-50'}`}>
+            {(['workspace', 'library', 'reader', 'review', 'settings', 'help'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`rounded-md px-4 py-2 text-sm font-semibold capitalize ${
-                  activeTab === tab ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-white'
+                  activeTab === tab ? 'bg-blue-700 text-white' : settings.darkMode ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-white'
                 }`}
               >
                 {tab}
@@ -729,7 +930,7 @@ export default function StudyForge() {
           { label: 'Progress', value: `${dashboard.averageProgress}%`, Icon: CheckCircle2 },
           { label: 'Reminders', value: dashboard.reminders, Icon: Bell },
         ] satisfies DashboardMetric[]).map(({ label, value, Icon }) => (
-          <div key={label} className="rounded-lg border border-slate-200 bg-white p-4">
+          <div key={label} className={`rounded-lg border p-4 ${settings.darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-500">{label}</p>
               <Icon className="text-blue-700" size={20} />
@@ -902,6 +1103,14 @@ export default function StudyForge() {
                   {isReading ? <Square size={18} /> : <Volume2 size={18} />}
                   {isReading ? 'Stop reading' : 'Read aloud'}
                 </button>
+                <button
+                  onClick={startFlashcards}
+                  disabled={!activeText.trim()}
+                  className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-5 py-3 font-semibold text-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <BookOpen size={18} />
+                  Review flashcards
+                </button>
               </div>
               {aiResult && <div className="mt-5 whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm leading-6">{aiResult}</div>}
               {quizQuestions.length > 0 && (
@@ -964,15 +1173,50 @@ export default function StudyForge() {
 
         {activeTab === 'library' && (
           <section className="rounded-lg border border-slate-200 bg-white p-5">
-            <h2 className="text-xl font-bold">Offline library</h2>
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <h2 className="text-xl font-bold">Offline library</h2>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={exportBackup} className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white">
+                  <Download size={16} /> Export backup
+                </button>
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold">
+                  <Upload size={16} /> Import backup
+                  <input type="file" accept="application/json,.json" className="hidden" onChange={(event) => importBackup(event.target.files?.[0] || null)} />
+                </label>
+              </div>
+            </div>
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="mt-4 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              placeholder="Search subjects, files, and saved text..."
+            />
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              {documents.map((document) => (
+              {filteredDocuments.map((document) => (
                 <div key={document.id} className="rounded-lg border border-slate-200 p-4">
                   <p className="font-semibold">{document.fileName}</p>
                   <p className="text-sm text-slate-500">{subjects.find((subject) => subject.id === document.subjectId)?.name || 'No subject'}</p>
                   <div className="mt-3 h-2 rounded-full bg-slate-100">
                     <div className="h-2 rounded-full bg-blue-700" style={{ width: `${document.progress}%` }} />
                   </div>
+                </div>
+              ))}
+            </div>
+            {weakAreas.length > 0 && (
+              <div className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <h3 className="font-bold text-amber-900">Weak areas to revise</h3>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-900">
+                  {weakAreas.map((area) => <li key={area}>{area}</li>)}
+                </ul>
+              </div>
+            )}
+            {quizAttempts.length > 0 && <h3 className="mt-8 text-lg font-bold">Quiz history</h3>}
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              {quizAttempts.slice(0, 8).map((attempt) => (
+                <div key={attempt.id} className="rounded-lg border border-slate-200 p-4">
+                  <p className="font-semibold">Score: {attempt.score} / {attempt.total}</p>
+                  <p className="text-sm text-slate-500">{new Date(attempt.createdAt).toLocaleString()}</p>
+                  {attempt.missed.length > 0 && <p className="mt-2 text-sm text-red-700">{attempt.missed.length} weak area{attempt.missed.length === 1 ? '' : 's'} saved</p>}
                 </div>
               ))}
             </div>
@@ -988,6 +1232,86 @@ export default function StudyForge() {
           </section>
         )}
 
+        {activeTab === 'reader' && (
+          <section className="rounded-lg border border-slate-200 bg-white p-5">
+            <h2 className="text-xl font-bold">Reader</h2>
+            {!activeDocument && <p className="mt-3 text-sm text-slate-500">Select a saved document to read it page by page.</p>}
+            {activeDocument && (
+              <>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-600">{activeDocument.fileName}</p>
+                  <p className="text-sm text-slate-500">Page {Math.min(readerPage + 1, readerPages.length || 1)} / {readerPages.length || 1}</p>
+                </div>
+                <article className="mt-4 min-h-80 rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm leading-7 whitespace-pre-wrap">
+                  {readerPages[readerPage] || activeDocument.content}
+                </article>
+                <div className="mt-4 flex gap-3">
+                  <button onClick={() => setReaderPage((page) => Math.max(0, page - 1))} className="rounded-md border border-slate-300 px-4 py-2 font-semibold">Previous</button>
+                  <button
+                    onClick={() => {
+                      setReaderPage((page) => Math.min(Math.max(readerPages.length - 1, 0), page + 1));
+                      markDocumentRead(activeDocument.id);
+                    }}
+                    className="rounded-md bg-blue-700 px-4 py-2 font-semibold text-white"
+                  >
+                    Next page
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {activeTab === 'review' && (
+          <section className="rounded-lg border border-slate-200 bg-white p-5">
+            <h2 className="text-xl font-bold">Flashcard review</h2>
+            {flashcards.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-500">Open a document and choose Review flashcards to begin.</p>
+            ) : (
+              <div className="mt-4">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-6">
+                  <p className="text-sm font-semibold text-slate-500">Card {activeFlashcard + 1} / {flashcards.length}</p>
+                  <p className="mt-4 text-xl font-bold">{showFlashcardBack ? flashcards[activeFlashcard].back : flashcards[activeFlashcard].front}</p>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button onClick={() => setShowFlashcardBack((shown) => !shown)} className="rounded-md bg-slate-950 px-4 py-2 font-semibold text-white">
+                    {showFlashcardBack ? 'Show front' : 'Show answer'}
+                  </button>
+                  <button onClick={nextFlashcard} className="rounded-md border border-slate-300 px-4 py-2 font-semibold">Next card</button>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeTab === 'settings' && (
+          <section className="rounded-lg border border-slate-200 bg-white p-5">
+            <h2 className="text-xl font-bold">Settings</h2>
+            <div className="mt-4 space-y-4">
+              <label className="flex items-center gap-3 font-semibold">
+                <input type="checkbox" checked={settings.darkMode} onChange={(event) => saveSettings({ ...settings, darkMode: event.target.checked })} />
+                Dark theme
+              </label>
+              <label className="flex items-center gap-3 font-semibold">
+                <input type="checkbox" checked={settings.deepStudy} onChange={(event) => saveSettings({ ...settings, deepStudy: event.target.checked })} />
+                Use Gemini deep study by default
+              </label>
+              <label className="block font-semibold">
+                Quiz difficulty
+                <select value={settings.quizDifficulty} onChange={(event) => saveSettings({ ...settings, quizDifficulty: event.target.value as StudySettings['quizDifficulty'] })} className="mt-2 block rounded-md border border-slate-300 px-3 py-2">
+                  <option value="standard">Standard</option>
+                  <option value="exam">Exam</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+              </label>
+              <label className="block font-semibold">
+                Read aloud speed: {settings.voiceRate.toFixed(2)}x
+                <input type="range" min="0.7" max="1.2" step="0.05" value={settings.voiceRate} onChange={(event) => saveSettings({ ...settings, voiceRate: Number(event.target.value) })} className="mt-2 block" />
+              </label>
+            </div>
+          </section>
+        )}
+
         {activeTab === 'help' && (
           <section className="rounded-lg border border-slate-200 bg-white p-5">
             <h2 className="flex items-center gap-2 text-xl font-bold">
@@ -997,9 +1321,11 @@ export default function StudyForge() {
               {[
                 ['Offline use', 'Install the app from your browser menu. Uploaded notes, extracted text, progress, reminders, and AI outputs are stored locally in IndexedDB.'],
                 ['PDF support', 'PDF parsing now uses a local worker copied into the app, so reading PDFs no longer depends on a CDN.'],
-                ['AI modes', 'StudyForge can use Gemini for online deep study if GEMINI_API_KEY is set. Without it, the app falls back to Ollama or the built-in offline generator.'],
+                ['AI modes', 'StudyForge can use Gemini for online deep study if GEMINI_API_KEY is set. Without it, the app uses the built-in offline generator.'],
                 ['Deep quiz', 'When Gemini deep study is enabled, quiz mode asks Gemini for harder comprehension questions, then shows them in the same interactive quiz interface.'],
                 ['Progress scoring', 'Progress is scored automatically. Opening a document, generating study aids, and submitting quiz answers all raise the score based on your activity.'],
+                ['Backups and search', 'Use the Library tab to search saved documents, export a backup, import a backup, view quiz history, and review weak areas.'],
+                ['Reader and review', 'Use Reader for page-by-page study and Review for flashcards generated from the active document.'],
                 ['Read aloud', 'Use the Read aloud button to listen to the generated answer. If no answer has been generated yet, it reads the current notes or extracted document text.'],
                 ['Backups', 'Your browser owns the offline database. Export/import can be added next so you can move your study library between devices.'],
               ].map(([title, body]) => (
