@@ -1,6 +1,6 @@
 {
   "name": "studyforge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,6 +12,7 @@
     "@supabase/supabase-js": "^2.108.2",
     "date-fns": "^4.4.0",
     "lucide-react": "^1.18.0",
+    "mammoth": "^1.12.0",
     "next": "16.2.9",
     "pdfjs-dist": "^6.0.227",
     "react": "19.2.4",

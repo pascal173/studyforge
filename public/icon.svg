@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="StudyForge">
+  <defs>
+    <linearGradient id="sky" x1="116" y1="76" x2="396" y2="436" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38bdf8"/>
+      <stop offset=".52" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="page" x1="158" y1="138" x2="354" y2="380" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dbeafe"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#020617"/>
+  <circle cx="366" cy="134" r="58" fill="#f59e0b"/>
+  <path d="M118 352c52-114 108-172 168-172 56 0 94 46 126 140 12 36-14 74-52 74H166c-36 0-63-28-48-42Z" fill="url(#sky)"/>
+  <path d="M158 118h154c44 0 80 36 80 80v190H232c-41 0-74-33-74-74V118Z" fill="url(#page)"/>
+  <path d="M202 178h132v28H202v-28Zm0 62h132v28H202v-28Zm0 62h86v28h-86v-28Z" fill="#1e3a8a"/>
+  <path d="M364 196h-34v154H202v34h162V196Z" fill="#0891b2"/>
+  <path d="M312 94 330 130l40 6-29 28 7 40-36-19-36 19 7-40-29-28 40-6 18-36Z" fill="#f8fafc"/>
+</svg>

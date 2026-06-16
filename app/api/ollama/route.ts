@@ -1,14 +1,19 @@
 export async function POST(request: Request) {
-  const { prompt, action } = await request.json();
+  const { prompt, action, subject } = await request.json();
 
-  let systemPrompt = "You are an expert, patient university tutor that helps students with any subject.";
+  let systemPrompt = `You are an expert, patient university tutor helping students with any subject. 
+  Current subject: ${subject || "General"}`;
 
   if (action === "flashcards") {
-    systemPrompt += " Generate 8 high-quality flashcards in this format: Front: ... Back: ...";
+    systemPrompt += " Generate 8 high-quality flashcards. Format: Front: ... Back: ...";
   } else if (action === "quiz") {
-    systemPrompt += " Create 6 multiple choice questions with correct answers and explanations.";
+    systemPrompt += " Create 6 multiple choice questions with 4 options, correct answer, and explanation.";
   } else if (action === "plan") {
-    systemPrompt += " Create a detailed 7-day study plan based on the material.";
+    systemPrompt += " Create a realistic and detailed 7-day study plan based on the material.";
+  } else if (action === "suggestions") {
+    systemPrompt += " Give important study tips, common mistakes students make, key focus areas, and effective learning strategies for this topic.";
+  } else {
+    systemPrompt += " Provide a clear and concise summary of the key points.";
   }
 
   try {
@@ -22,9 +27,17 @@ export async function POST(request: Request) {
       }),
     });
 
+    if (!response.ok) {
+      return Response.json({
+        error: "Ollama responded with an error. Check that the selected model is installed.",
+      }, { status: response.status });
+    }
+
     const data = await response.json();
     return Response.json({ result: data.response });
-  } catch (error) {
-    return Response.json({ error: "Ollama not responding. Run: ollama run llama3.1:8b" }, { status: 500 });
+  } catch {
+    return Response.json({ 
+      error: "Ollama is not running. Start it with: ollama run llama3.1:8b" 
+    }, { status: 500 });
   }
 }
