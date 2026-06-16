@@ -11,9 +11,11 @@ import {
   Loader2,
   Plus,
   Save,
+  Square,
   Sparkles,
   Trash2,
   Upload,
+  Volume2,
 } from 'lucide-react';
 import Image from 'next/image';
 import type { LucideIcon } from 'lucide-react';
@@ -77,8 +79,9 @@ type DashboardMetric = {
 
 const DB_NAME = 'studyforge-offline';
 const DB_VERSION = 1;
-const APP_VERSION = '0.2.1';
+const APP_VERSION = '0.2.2';
 const RELEASE_NOTES = [
+  'Read aloud button for generated answers and study notes.',
   'Gemini free-tier online deep study mode is now wired into the app.',
   'Optional instruction box before generating study output.',
   'Interactive quiz mode with answers, scoring, and explanations.',
@@ -285,6 +288,7 @@ export default function StudyForge() {
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
   const [quizDone, setQuizDone] = useState(false);
+  const [isReading, setIsReading] = useState(false);
   const [showUpdatePopup, setShowUpdatePopup] = useState(false);
   const [reminderTime, setReminderTime] = useState('18:00');
   const [activeTab, setActiveTab] = useState<'workspace' | 'library' | 'help'>('workspace');
@@ -333,6 +337,12 @@ export default function StudyForge() {
     }
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    };
+  }, []);
+
   const dismissUpdatePopup = () => {
     window.localStorage.setItem('studyforgeSeenVersion', APP_VERSION);
     setShowUpdatePopup(false);
@@ -342,6 +352,7 @@ export default function StudyForge() {
   const subjectDocuments = documents.filter((document) => document.subjectId === activeSubjectId);
   const activeDocument = documents.find((document) => document.id === activeDocumentId);
   const activeText = activeDocument?.content || manualText;
+  const readableText = aiResult || activeText;
 
   const dashboard = useMemo(() => {
     const averageProgress = documents.length
@@ -564,6 +575,25 @@ export default function StudyForge() {
     await putStore('reminders', reminder);
     setReminders((current) => [reminder, ...current]);
     toast.success('Study reminder saved.');
+  };
+
+  const readAloud = () => {
+    if (!readableText.trim()) return toast.error('Nothing to read yet.');
+    if (!('speechSynthesis' in window)) return toast.error('Read aloud is not supported in this browser.');
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(readableText.slice(0, 12000));
+    utterance.rate = 0.92;
+    utterance.pitch = 1;
+    utterance.onend = () => setIsReading(false);
+    utterance.onerror = () => setIsReading(false);
+    setIsReading(true);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const stopReading = () => {
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    setIsReading(false);
   };
 
   const deleteDocument = async (id: string) => {
@@ -789,14 +819,24 @@ export default function StudyForge() {
                 />
                 Use Gemini online deep study mode when available
               </label>
-              <button
-                onClick={askAI}
-                disabled={loading || !activeText.trim()}
-                className="mt-4 inline-flex items-center gap-2 rounded-md bg-slate-950 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
-                Generate {mode}{onlineDeepStudy ? ' with deep study' : ' offline'}
-              </button>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  onClick={askAI}
+                  disabled={loading || !activeText.trim()}
+                  className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
+                  Generate {mode}{onlineDeepStudy ? ' with deep study' : ' offline'}
+                </button>
+                <button
+                  onClick={isReading ? stopReading : readAloud}
+                  disabled={!readableText.trim()}
+                  className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isReading ? <Square size={18} /> : <Volume2 size={18} />}
+                  {isReading ? 'Stop reading' : 'Read aloud'}
+                </button>
+              </div>
               {aiResult && <div className="mt-5 whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm leading-6">{aiResult}</div>}
               {quizQuestions.length > 0 && (
                 <div className="mt-5 space-y-4">
