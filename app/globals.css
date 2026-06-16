@@ -24,3 +24,63 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.studyforge-dark .bg-white,
+.studyforge-dark .bg-slate-50 {
+  background-color: #0f172a !important;
+  color: #e5edf8 !important;
+}
+
+.studyforge-dark .border-slate-200,
+.studyforge-dark .border-slate-300 {
+  border-color: #334155 !important;
+}
+
+.studyforge-dark .text-slate-500,
+.studyforge-dark .text-slate-600,
+.studyforge-dark .text-slate-700,
+.studyforge-dark .text-slate-800 {
+  color: #cbd5e1 !important;
+}
+
+.studyforge-dark .text-slate-950 {
+  color: #f8fafc !important;
+}
+
+.studyforge-dark input,
+.studyforge-dark textarea,
+.studyforge-dark select {
+  background-color: #111827 !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+
+.studyforge-dark input::placeholder,
+.studyforge-dark textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+.studyforge-dark option {
+  background-color: #111827;
+  color: #f8fafc;
+}
+
+.studyforge-dark .bg-blue-50 {
+  background-color: #172554 !important;
+  color: #dbeafe !important;
+}
+
+.studyforge-dark .bg-emerald-50 {
+  background-color: #064e3b !important;
+  color: #d1fae5 !important;
+}
+
+.studyforge-dark .bg-red-50 {
+  background-color: #7f1d1d !important;
+  color: #fee2e2 !important;
+}
+
+.studyforge-dark .bg-amber-50 {
+  background-color: #78350f !important;
+  color: #fef3c7 !important;
+}

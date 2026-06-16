@@ -874,7 +874,7 @@ export default function StudyForge() {
   };
 
   return (
-    <main className={`min-h-screen ${settings.darkMode ? 'bg-slate-950 text-slate-100' : 'bg-[#f8fafc] text-slate-950'}`}>
+    <main className={`min-h-screen ${settings.darkMode ? 'studyforge-dark bg-slate-950 text-slate-100' : 'bg-[#f8fafc] text-slate-950'}`}>
       <Toaster position="top-center" />
 
       {showUpdatePopup && (
